@@ -1,4 +1,4 @@
-'''
+"""
 Tests module.
 
 Meant for use with py.test.
@@ -7,4 +7,4 @@ Read more here: http://pytest.org/
 
 Author: Konstantin Tretyakov
 License: MIT
-'''
+"""

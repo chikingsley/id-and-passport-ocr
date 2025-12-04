@@ -1,113 +1,57 @@
-'''
-Test module for use with py.test.
-Write each test as a function named test_<something>.
-Read more here: http://pytest.org/
+"""
+Test passport data extraction with Gemini.
 
-Author: Peter Horsley
-License: MIT
-'''
-import io
-from passporteye import read_mrz
+Requires GEMINI_API_KEY environment variable.
+"""
 
-def read_img(filename, as_stream=False):
-    file = io.open(filename, "rb", buffering=0) if as_stream else filename
-    return read_mrz(file, extra_cmdline_params='--oem 0')
+import os
+from pathlib import Path
 
-def test_td2_td3_stream_nonstream():
-    for fn, test_fn in [('./tests/data/passport-td3.jpg', assert_td3_jpg),
-                        ('./tests/data/passport-td3.png', assert_td3_png),
-                        ('./tests/data/passport-td2.jpg', assert_td2_jpg),
-                        ('./tests/data/passport-td2.png', assert_td2_png),
-                       ]:
-        for as_stream in [True, False]:
-            test_fn(read_img(fn, as_stream=as_stream))
+import pytest
 
-def assert_td3_jpg(mrz):
-    assert mrz is not None
-    assert mrz.mrz_type == 'TD3'
-    assert mrz.valid_score >= 62  # Can be 100 on some Tesseract installations
-    assert mrz.type == 'P<'
-    assert mrz.country == 'UTO'
-    assert mrz.number == 'L898902C3'
-    assert mrz.date_of_birth == '740812'
-    assert mrz.expiration_date == '120415'
-    assert mrz.nationality == 'UTO'
-    assert mrz.sex == 'F'
-    assert mrz.names == 'ANNA MARIA'
-    assert mrz.surname == 'ERIKSSON'
-    assert mrz.personal_number in ['2E184226B<<<<<', 'ZE184226B<<<<<']
-    assert mrz.check_number == '6'
-    assert mrz.check_date_of_birth == '2'
-    assert mrz.check_expiration_date == '9'
-    assert mrz.check_composite == '0'
-    assert mrz.check_personal_number == '1'
-    assert mrz.valid_number
-    assert mrz.valid_date_of_birth
-    assert mrz.valid_expiration_date
+from id_and_passport_ocr import read_passport
 
-def assert_td3_png(mrz):
-    assert mrz is not None
-    assert mrz.mrz_type == 'TD3'
-    assert mrz.valid_score == 100
-    assert mrz.type == 'P<'
-    assert mrz.country == 'UTO'
-    assert mrz.number == 'L898902C3'
-    assert mrz.date_of_birth == '740812'
-    assert mrz.expiration_date == '120415'
-    assert mrz.nationality == 'UTO'
-    assert mrz.sex == 'F'
-    assert mrz.names == 'ANNA MARIA'
-    assert mrz.surname == 'ERIKSSON'
-    assert mrz.personal_number in ['2E184226B<<<<<', 'ZE184226B<<<<<']
-    assert mrz.check_number == '6'
-    assert mrz.check_date_of_birth == '2'
-    assert mrz.check_expiration_date == '9'
-    assert mrz.check_composite == '0'
-    assert mrz.check_personal_number == '1'
-    assert mrz.valid_number
-    assert mrz.valid_date_of_birth
-    assert mrz.valid_expiration_date
+TEST_DATA = Path(__file__).parent / "data"
 
-def assert_td2_jpg(mrz):
-    assert mrz.mrz_type == 'TD2'
-    assert mrz.valid_score == 100
-    assert mrz.type == 'I<'
-    assert mrz.country == 'UTO'
-    assert mrz.number == 'D23145890'
-    assert mrz.date_of_birth == '740812'
-    assert mrz.expiration_date == '120415'
-    assert mrz.nationality == 'UTO'
-    assert mrz.sex == 'F'
-    assert mrz.names == 'ANNA MARIA'
-    assert mrz.surname == 'ERIKSSON'
-    assert mrz.optional1 == '<<<<<<<'
-    assert mrz.check_number == '7'
-    assert mrz.check_date_of_birth == '2'
-    assert mrz.check_expiration_date == '9'
-    assert mrz.check_composite == '6'
-    assert mrz.valid_number
-    assert mrz.valid_date_of_birth
-    assert mrz.valid_expiration_date
-    assert mrz.valid_composite
 
-def assert_td2_png(mrz):
-    assert mrz.mrz_type == 'TD2'
-    assert mrz.valid_score == 100
-    assert mrz.type == 'I<'
-    assert mrz.country == 'UTO'
-    assert mrz.number == 'D23145890'
-    assert mrz.date_of_birth == '740812'
-    assert mrz.expiration_date == '120415'
-    assert mrz.nationality == 'UTO'
-    assert mrz.sex == 'F'
-    assert mrz.names == 'ANNA MARIA'
-    assert mrz.surname == 'ERIKSSON'
-    assert mrz.optional1 == '<<<<<<<'
-    assert mrz.check_number == '7'
-    assert mrz.check_date_of_birth == '2'
-    assert mrz.check_expiration_date == '9'
-    assert mrz.check_composite == '6'
-    assert mrz.valid_number
-    assert mrz.valid_date_of_birth
-    assert mrz.valid_expiration_date
-    assert mrz.valid_composite
+@pytest.fixture
+def check_api_key():
+    """Skip tests if no API key is set."""
+    if not (os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")):
+        pytest.skip("GEMINI_API_KEY not set")
+
+
+def test_passport_extraction(check_api_key):
+    """Test passport data extraction."""
+    data = read_passport(TEST_DATA / "passport-td3.png")
+
+    assert data is not None
+    assert data.document_type == "passport"
+    assert data.country == "UTO"
+    assert data.surname == "ERIKSSON"
+    assert data.names == "ANNA MARIA"
+    assert data.nationality == "UTO"
+    assert data.sex == "F"
+
+
+def test_jpg_format(check_api_key):
+    """Test JPG format support."""
+    data = read_passport(TEST_DATA / "passport-td3.jpg")
+
+    assert data is not None
+    assert data.surname == "ERIKSSON"
+
+
+def test_file_stream(check_api_key):
+    """Test reading from file stream."""
+    with open(TEST_DATA / "passport-td3.png", "rb") as f:
+        data = read_passport(f)
+
+    assert data is not None
+    assert data.document_type == "passport"
+
+
+def test_invalid_image(check_api_key):
+    """Test that non-passport images return None."""
+    data = read_passport(TEST_DATA / "pacman.jpg")
+    assert data is None
