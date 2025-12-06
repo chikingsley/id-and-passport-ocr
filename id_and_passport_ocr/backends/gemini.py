@@ -140,8 +140,7 @@ class GeminiBackend(Backend):
                 "If no valid passport is visible, return null values."
             ),
             DocumentType.ID_CARD: (
-                "Extract all ID card data from this image. "
-                "If no valid ID card is visible, return null values."
+                "Extract all ID card data from this image. If no valid ID card is visible, return null values."
             ),
             DocumentType.DRIVER_LICENSE: (
                 "Extract all driver's license data from this image. "
